@@ -37,7 +37,7 @@ class AgentWallet:
         max_per_tx:       Plafond USDC par transaction (défaut : 10% du budget).
         whitelist:        Adresses autorisées (liste vide = toutes autorisées).
         discord_webhook:  URL webhook Discord. Si None, alertes désactivées.
-        data_dir:         Répertoire de stockage JSON (défaut : ./data).
+        data_dir:         Agent state storage directory (défaut : ./data).
         onchain:          Si True, exécute les vraies tx on-chain via Chain.
                           Si False (défaut), mode dry-run — persiste sans envoyer.
         circuit_breaker_max:        Nombre de crashs avant suspension.

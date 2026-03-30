@@ -2,12 +2,12 @@
 AgentVault CLI
 
 Usage:
-    python -m agentvault.cli status   <agent_name>
-    python -m agentvault.cli history  <agent_name> [--limit N]
-    python -m agentvault.cli reset    <agent_name>
-    python -m agentvault.cli init
+    agentvault status   <agent_name>
+    agentvault history  <agent_name> [--limit N]
+    agentvault reset    <agent_name>
+    agentvault init
 
-Lit AGENTVAULT_DATA_DIR depuis .env (défaut : ./data).
+Reads AGENTVAULT_DATA_DIR from .env (default: ./data).
 """
 
 import argparse
@@ -29,29 +29,19 @@ def _get_storage(agent_name: str):
     safe = agent_name.replace("/", "_").replace(" ", "_")
     path = os.path.join(_data_dir(), f"{safe}.db")
     if not os.path.exists(path):
-        print(f"❌  Agent '{agent_name}' introuvable dans {_data_dir()}/")
+        print(f"❌  Agent '{agent_name}' not found in {_data_dir()}/")
         sys.exit(1)
     return Storage(path)
 
 
-# ------------------------------------------------------------------
-# Commandes
-# ------------------------------------------------------------------
-
 def cmd_status(args) -> None:
-    """Affiche l'état courant d'un agent."""
-    from agentvault.rules import BudgetRules, get_period_start, compute_spent
+    """Show current status of an agent."""
+    from agentvault.rules import get_period_start, compute_spent
 
     storage = _get_storage(args.agent_name)
     state = storage.load()
 
     now = datetime.now(timezone.utc)
-    rules = BudgetRules(
-        budget_usdc=state["budget_usdc"],
-        period=state["period"],
-        max_per_tx=state["max_per_tx"],
-        whitelist=state["whitelist"],
-    )
     period_start = get_period_start(state["period"], now)
     spent = compute_spent(state["transactions"], period_start)
     remaining = round(state["budget_usdc"] - spent, 6)
@@ -61,33 +51,33 @@ def cmd_status(args) -> None:
     print(f"  AgentVault — {state['agent_name']}")
     print(f"{'─' * 44}")
     print(f"  Budget         {state['budget_usdc']:.2f} USDC / {state['period']}")
-    print(f"  Dépensé        {spent:.2f} USDC")
-    print(f"  Restant        {remaining:.2f} USDC")
+    print(f"  Spent          {spent:.2f} USDC")
+    print(f"  Remaining      {remaining:.2f} USDC")
     print(f"  Max / tx       {state['max_per_tx']:.2f} USDC")
-    print(f"  Whitelist      {len(state['whitelist'])} adresse(s)")
-    print(f"  Tx totales     {len(state['transactions'])}")
+    print(f"  Whitelist      {len(state['whitelist'])} address(es)")
+    print(f"  Total tx       {len(state['transactions'])}")
 
-    cb_status = "🔴 DÉCLENCHÉ" if cb["tripped"] else "🟢 OK"
+    cb_status = "🔴 TRIPPED" if cb["tripped"] else "🟢 OK"
     print(f"  Circuit BK     {cb_status}")
     if cb["tripped"] and cb["tripped_at"]:
-        print(f"  Déclenché le   {cb['tripped_at'][:19]} UTC")
+        print(f"  Tripped at     {cb['tripped_at'][:19]} UTC")
 
     if state["created_at"]:
-        print(f"  Créé le        {state['created_at'][:19]} UTC")
+        print(f"  Created at     {state['created_at'][:19]} UTC")
     print(f"{'─' * 44}\n")
 
 
 def cmd_history(args) -> None:
-    """Affiche les dernières transactions d'un agent."""
+    """Show transaction history of an agent."""
     storage = _get_storage(args.agent_name)
     txs = storage.get_transactions(limit=args.limit)
 
     if not txs:
-        print(f"Aucune transaction pour '{args.agent_name}'.")
+        print(f"No transactions found for '{args.agent_name}'.")
         return
 
-    print(f"\n  Historique — {args.agent_name} (dernières {len(txs)})")
-    print(f"  {'Date':<20} {'Montant':>8}  {'Statut':<10}  Raison")
+    print(f"\n  History — {args.agent_name} (last {len(txs)})")
+    print(f"  {'Date':<20} {'Amount':>8}  {'Status':<10}  Reason")
     print(f"  {'─'*20} {'─'*8}  {'─'*10}  {'─'*30}")
 
     for tx in txs:
@@ -101,111 +91,103 @@ def cmd_history(args) -> None:
 
 
 def cmd_reset(args) -> None:
-    """Réinitialise le circuit breaker d'un agent."""
+    """Reset the circuit breaker of an agent."""
     storage = _get_storage(args.agent_name)
     state = storage.load()
     cb = state["circuit_breaker"]
 
     if not cb["tripped"]:
-        print(f"ℹ️  Le circuit breaker de '{args.agent_name}' n'est pas déclenché.")
+        print(f"ℹ️  Circuit breaker for '{args.agent_name}' is not tripped.")
         return
 
     confirm = input(
-        f"⚠️  Réinitialiser le circuit breaker de '{args.agent_name}' ? [oui/N] "
+        f"⚠️  Reset circuit breaker for '{args.agent_name}'? [yes/N] "
     ).strip().lower()
 
-    if confirm != "oui":
-        print("Annulé.")
+    if confirm != "yes":
+        print("Cancelled.")
         return
 
     storage.reset_circuit_breaker()
-    print(f"✅  Circuit breaker de '{args.agent_name}' réinitialisé.")
+    print(f"✅  Circuit breaker for '{args.agent_name}' has been reset.")
 
 
 def cmd_init(args) -> None:
-    """Génère une nouvelle clé privée et un fichier .env."""
+    """Generate a new private key and .env file."""
     try:
         from eth_account import Account
     except ImportError:
-        print("❌  web3 requis : pip install web3")
+        print("❌  web3 required: pip install web3")
         sys.exit(1)
 
     env_path = os.path.join(os.getcwd(), ".env")
 
     if os.path.exists(env_path):
         confirm = input(
-            f"⚠️  Un fichier .env existe déjà ({env_path}). L'écraser ? [oui/N] "
+            f"⚠️  A .env file already exists ({env_path}). Overwrite? [yes/N] "
         ).strip().lower()
-        if confirm != "oui":
-            print("Annulé.")
+        if confirm != "yes":
+            print("Cancelled.")
             return
 
     acc = Account.create()
 
-    env_content = f"""# AgentVault — variables d'environnement
-# Généré automatiquement par : python -m agentvault.cli init
-# NE JAMAIS committer ce fichier dans Git
+    env_content = f"""# AgentVault — environment variables
+# Auto-generated by: agentvault init
+# NEVER commit this file to Git
 
-# Clé privée du wallet agent
+# Agent wallet private key
 AGENT_PRIVATE_KEY={acc.key.hex()}
 
-# Webhook Discord pour les alertes (optionnel)
+# Discord webhook for alerts (optional)
 DISCORD_WEBHOOK_URL=
 
-# Réseau blockchain : "base" (mainnet) ou "base-sepolia" (tests)
+# Blockchain network: "base" (mainnet) or "base-sepolia" (testnet)
 CHAIN=base-sepolia
 
-# RPC Infura (optionnel — fallback si le RPC public est indisponible)
+# Infura RPC key (optional — fallback if public RPC is unavailable)
 # INFURA_API_KEY=
 
-# Répertoire de stockage des états (défaut : ./data)
+# Agent state storage directory (default: ./data)
 # AGENTVAULT_DATA_DIR=./data
 """
 
     with open(env_path, "w") as f:
         f.write(env_content)
 
-    print(f"\n✅  Wallet généré avec succès !")
-    print(f"   Adresse    : {acc.address}")
+    print(f"\n✅  Wallet generated successfully!")
+    print(f"   Address    : {acc.address}")
     print(f"   .env       : {env_path}")
-    print(f"\n⚠️  La clé privée est dans .env — ne la commitez jamais sur Git.")
-    print(f"   Vérifiez que .env est dans votre .gitignore.\n")
-    print(f"   Prochaines étapes :")
-    print(f"   1. Obtenez de l'ETH sur Base pour payer le gas")
-    print(f"   2. Obtenez de l'USDC sur Base")
-    print(f"   3. Configurez DISCORD_WEBHOOK_URL pour les alertes\n")
+    print(f"\n⚠️  Your private key is in .env — never commit it to Git.")
+    print(f"   Make sure .env is in your .gitignore.\n")
+    print(f"   Next steps:")
+    print(f"   1. Get ETH on Base to pay for gas")
+    print(f"   2. Get USDC on Base")
+    print(f"   3. Set DISCORD_WEBHOOK_URL for alerts\n")
 
-
-# ------------------------------------------------------------------
-# Entrée principale
-# ------------------------------------------------------------------
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="agentvault",
-        description="AgentVault — budget controller pour agents IA dépensant de l'USDC",
+        description="AgentVault — budget controller for AI agents spending USDC on Base",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    # status
-    p_status = sub.add_parser("status", help="Affiche l'état d'un agent")
-    p_status.add_argument("agent_name", help="Nom de l'agent")
+    p_status = sub.add_parser("status", help="Show agent status")
+    p_status.add_argument("agent_name", help="Agent name")
     p_status.set_defaults(func=cmd_status)
 
-    # history
-    p_history = sub.add_parser("history", help="Affiche l'historique des transactions")
-    p_history.add_argument("agent_name", help="Nom de l'agent")
+    p_history = sub.add_parser("history", help="Show transaction history")
+    p_history.add_argument("agent_name", help="Agent name")
     p_history.add_argument("--limit", type=int, default=20,
-                            help="Nombre de transactions à afficher (défaut : 20)")
+                            help="Number of transactions to show (default: 20)")
     p_history.set_defaults(func=cmd_history)
 
-    # reset
-    p_reset = sub.add_parser("reset", help="Réinitialise le circuit breaker")
-    p_reset.add_argument("agent_name", help="Nom de l'agent")
+    p_reset = sub.add_parser("reset", help="Reset the circuit breaker")
+    p_reset.add_argument("agent_name", help="Agent name")
     p_reset.set_defaults(func=cmd_reset)
 
-    # init
-    p_init = sub.add_parser("init", help="Génère une clé privée et un .env")
+    p_init = sub.add_parser("init", help="Generate a private key and .env file")
     p_init.set_defaults(func=cmd_init)
 
     args = parser.parse_args()
