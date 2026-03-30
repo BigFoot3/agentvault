@@ -313,3 +313,70 @@ class Storage:
             "created_at":  None,
             "last_updated": None,
         })
+
+    def append_transaction(self, tx: dict[str, Any]) -> None:
+        """Insert a single transaction directly — no full rewrite."""
+        with self._connect() as conn:
+            conn.execute("""
+                INSERT INTO transactions
+                    (auth_id, amount, to_address, status, timestamp,
+                     reason, tx_hash, gas_used, onchain)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                tx.get("auth_id"),
+                tx.get("amount", 0.0),
+                tx.get("to"),
+                tx.get("status", "committed"),
+                tx.get("timestamp"),
+                tx.get("reason"),
+                tx.get("tx_hash"),
+                tx.get("gas_used"),
+                int(tx.get("onchain", False)),
+            ))
+            conn.execute("""
+                UPDATE agent SET spent_total = spent_total + ?, last_updated = ?
+                WHERE id = 1
+            """, (tx.get("amount", 0.0), tx.get("timestamp")))
+
+    def save_meta(self, state: dict[str, Any]) -> None:
+        """Save only agent config + circuit breaker — skip transactions table."""
+        now = datetime.now(timezone.utc).isoformat()
+        state["last_updated"] = now
+        cb = state.get("circuit_breaker", {})
+
+        with self._connect() as conn:
+            conn.execute("""
+                INSERT INTO agent (id, agent_name, budget_usdc, period, max_per_tx,
+                                   whitelist, spent_total, created_at, last_updated)
+                VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    agent_name   = excluded.agent_name,
+                    budget_usdc  = excluded.budget_usdc,
+                    period       = excluded.period,
+                    max_per_tx   = excluded.max_per_tx,
+                    whitelist    = excluded.whitelist,
+                    spent_total  = excluded.spent_total,
+                    created_at   = excluded.created_at,
+                    last_updated = excluded.last_updated
+            """, (
+                state.get("agent_name", ""),
+                state.get("budget_usdc", 0.0),
+                state.get("period", "week"),
+                state.get("max_per_tx", 0.0),
+                json.dumps(state.get("whitelist", [])),
+                state.get("spent_total", 0.0),
+                state.get("created_at"),
+                now,
+            ))
+            conn.execute("""
+                INSERT INTO circuit_breaker (id, tripped, tripped_at, failures)
+                VALUES (1, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    tripped    = excluded.tripped,
+                    tripped_at = excluded.tripped_at,
+                    failures   = excluded.failures
+            """, (
+                int(cb.get("tripped", False)),
+                cb.get("tripped_at"),
+                json.dumps(cb.get("failures", [])),
+            ))

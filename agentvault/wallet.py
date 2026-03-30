@@ -204,16 +204,15 @@ class AgentWallet:
             "onchain":   receipt is not None,
         }
 
-        state = self._storage.record_transaction(state, tx)
-
         try:
-            self._storage.save(state)
+            self._storage.append_transaction(tx)
         except Exception as e:
             raise StorageError(
                 f"Impossible de sauvegarder l'état de {self.agent_name} : {e}"
             ) from e
 
         # --- Étape 3 : notifications ---
+        state = self._storage.load()
         remaining = self._rules.remaining_budget(state, now)
 
         if remaining < self.budget_usdc * _BUDGET_WARNING_PCT:
