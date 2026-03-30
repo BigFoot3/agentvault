@@ -8,7 +8,7 @@ Pas de base de données : un fichier JSON par agent.
 import fcntl
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 # État initial d'un agent — copié à la création du fichier
@@ -60,7 +60,7 @@ class Storage:
 
     def save(self, state: dict[str, Any]) -> None:
         """Sauvegarde atomique : écrit dans .tmp, puis remplace le fichier cible."""
-        state["last_updated"] = datetime.utcnow().isoformat()
+        state["last_updated"] = datetime.now(timezone.utc).isoformat()
 
         with open(self._tmp, "w") as f:
             fcntl.flock(f, fcntl.LOCK_EX)
@@ -89,7 +89,7 @@ class Storage:
             "period": period,
             "max_per_tx": max_per_tx,
             "whitelist": whitelist,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         })
         self.save(state)
         return state
@@ -109,14 +109,14 @@ class Storage:
         Retourne l'état mis à jour.
         """
         if now is None:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
         state["circuit_breaker"]["failures"].append(now.isoformat())
         return state
 
     def trip_circuit_breaker(self, state: dict[str, Any], now: datetime | None = None) -> dict[str, Any]:
         """Déclenche le circuit breaker."""
         if now is None:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
         state["circuit_breaker"]["tripped"] = True
         state["circuit_breaker"]["tripped_at"] = now.isoformat()
         return state

@@ -10,7 +10,7 @@ Le wallet est stateless entre les appels : l'état est relu depuis le disque
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
@@ -127,7 +127,7 @@ class AgentWallet:
         Ne lève jamais d'exception — inspecter auth.approved.
         Envoie une notification Discord si refusé.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         try:
             state = self._storage.load()
@@ -179,7 +179,7 @@ class AgentWallet:
                 f"commit() appelé avec un AuthResult refusé : {auth.reason}"
             )
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         receipt: TxReceipt | None = None
 
         # --- Étape 1 : transaction on-chain (si activé) ---
@@ -250,7 +250,7 @@ class AgentWallet:
         Raises:
             CircuitBreakerTripped: Si le circuit breaker vient de se déclencher.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         try:
             state = self._storage.load()
@@ -284,7 +284,7 @@ class AgentWallet:
 
     def status(self) -> dict:
         """Résumé de l'état courant du wallet."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         state = self._storage.load()
         remaining = self._rules.remaining_budget(state, now)
         cb = state.get("circuit_breaker", {})

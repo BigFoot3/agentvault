@@ -12,7 +12,7 @@ ne doit jamais bloquer une transaction.
 """
 
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # Couleurs embed Discord (format décimal)
@@ -116,7 +116,7 @@ class Notifier:
                 {"name": name, "value": value, "inline": inline}
                 for name, value, inline in fields
             ],
-            "footer": {"text": f"AgentVault • {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC"},
+            "footer": {"text": f"AgentVault • {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC"},
         }
 
         try:

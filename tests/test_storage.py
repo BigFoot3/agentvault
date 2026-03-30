@@ -13,7 +13,7 @@ Couverture :
 import json
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -102,7 +102,7 @@ class TestRecordTransaction:
             "amount": 5.0,
             "to": "0xabc",
             "status": "committed",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         state = storage.record_transaction(state, tx)
         assert len(state["transactions"]) == 1
@@ -135,9 +135,9 @@ class TestCircuitBreakerStorage:
 
     def test_record_failure_uses_utcnow_by_default(self, storage):
         state = storage.load()
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc)
         state = storage.record_failure(state)
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc)
         ts = datetime.fromisoformat(state["circuit_breaker"]["failures"][0])
         assert before <= ts <= after
 

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 from web3 import Web3
 from web3.middleware import ExtraDataToPOAMiddleware
+from decimal import Decimal
 
 load_dotenv()
 
@@ -153,7 +154,7 @@ class Chain:
             raise ValueError(f"Montant invalide : {amount_usdc}")
 
         to_addr = Web3.to_checksum_address(to)
-        amount_raw = int(amount_usdc * 10 ** _USDC_DECIMALS)
+        amount_raw = int(Decimal(str(amount_usdc)) * 10 ** _USDC_DECIMALS)
 
         # Vérification solde USDC
         balance_usdc = self.usdc_balance()
@@ -172,13 +173,11 @@ class Chain:
 
         # Construction de la transaction
         nonce = self._w3.eth.get_transaction_count(self.address)
-        gas_price = self._w3.eth.gas_price
 
         tx = self._usdc.functions.transfer(to_addr, amount_raw).build_transaction({
             "chainId":  self.chain_id,
             "from":     self.address,
             "nonce":    nonce,
-            "gasPrice": gas_price,
         })
 
         # Estimation du gas + marge 20%

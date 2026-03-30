@@ -13,7 +13,7 @@ Règles évaluées dans l'ordre :
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .exceptions import BudgetExceeded, CircuitBreakerTripped, InvalidAmount, WhitelistViolation
@@ -32,7 +32,7 @@ class AuthResult:
     amount: float = 0.0
     to: str = ""
     auth_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def raise_if_denied(self) -> None:
         """
@@ -63,7 +63,7 @@ def get_period_start(period: str, now: datetime | None = None) -> datetime:
     Périodes supportées : "day", "week" (lundi), "month".
     """
     if now is None:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
     if period == "day":
         return now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -163,7 +163,7 @@ class BudgetRules:
         Stateless : ne modifie pas `state`.
         """
         if now is None:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
         # 1. Montant valide
         if amount <= 0:
@@ -242,7 +242,7 @@ class BudgetRules:
         Retourne True si le seuil est atteint ou dépassé.
         """
         if now is None:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
         cb = state.get("circuit_breaker", {})
 
@@ -266,7 +266,7 @@ class BudgetRules:
     ) -> float:
         """Retourne le budget restant pour la période courante."""
         if now is None:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
         period_start = get_period_start(self.period, now)
         spent = compute_spent(state.get("transactions", []), period_start)
         return round(self.budget_usdc - spent, 6)

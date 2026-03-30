@@ -10,7 +10,7 @@ Intégration sans blockchain ni Discord :
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 
 from agentvault.wallet import AgentWallet
