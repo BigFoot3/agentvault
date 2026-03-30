@@ -30,6 +30,12 @@ Agent → wallet.authorize() → rules checked → wallet.commit() → on-chain 
 ### 1. Install
 
 ```bash
+pip install agentvault-budget
+```
+
+Or from source:
+
+```bash
 git clone https://github.com/BigFoot3/agentvault
 cd agentvault
 python3 -m venv venv
@@ -40,7 +46,7 @@ pip install -e ".[dev]"
 ### 2. Generate a wallet
 
 ```bash
-python -m agentvault.cli init
+agentvault init
 ```
 
 This creates a `.env` file with a fresh private key and wallet address. Fund the wallet with ETH (for gas) and USDC on Base.
@@ -84,16 +90,16 @@ else:
 
 ```bash
 # Check agent status
-python -m agentvault.cli status my-agent
+agentvault status my-agent
 
 # View transaction history
-python -m agentvault.cli history my-agent --limit 50
+agentvault history my-agent --limit 50
 
 # Reset circuit breaker (after fixing the underlying issue)
-python -m agentvault.cli reset my-agent
+agentvault reset my-agent
 
 # Generate a new private key and .env
-python -m agentvault.cli init
+agentvault init
 ```
 
 ---
@@ -125,7 +131,7 @@ pyproject.toml
 
 ```bash
 source venv/bin/activate
-pytest                      # 132 tests, ~7s
+pytest                      # 109 tests, ~7s
 pytest --cov=agentvault     # with coverage
 ```
 
