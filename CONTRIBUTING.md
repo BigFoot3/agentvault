@@ -259,7 +259,7 @@ def test_budget_exceeded():
    - Don't disable in production without careful consideration
 
 4. **Whitelist Validation**
-   - Empty whitelist allows all addresses (use with caution)
+   - Empty whitelist disables address filtering — all destinations are accepted (use with caution in production)
    - Always validate addresses are checksummed
 
 ### Security Testing
@@ -360,12 +360,15 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 3. Update CHANGELOG.md
 4. Create a git tag: `git tag v0.x.x`
 5. Push tag: `git push origin v0.x.x`
-6. GitHub Actions will build and publish to PyPI
+6. Build and publish manually:
+   ```bash
+   python -m build
+   twine upload dist/*
+   ```
 
 ## Questions?
 
 - Open an issue for questions or discussions
-- Join our community Discord (link in README)
 
 ## License
 
